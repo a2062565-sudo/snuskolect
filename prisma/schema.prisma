@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  SUPPORT
+  ADMIN
+}
+
+enum Rarity {
+  UNDETERMINED
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+  MYTHIC
+}
+
+enum ScanStatus {
+  COMPLETED
+  CONSUMED
+  FAILED
+}
+
+enum AchievementMetric {
+  CAP_COUNT
+  RARITY_COUNT
+  MANUFACTURER_COUNT
+}
+
+enum TicketStatus {
+  OPEN
+  ANSWERED
+  RESOLVED
+}
+
+enum TicketAuthor {
+  USER
+  SUPPORT
+  ADMIN
+  SYSTEM
+}
+
+model User {
+  id              String             @id @default(cuid())
+  telegramId      String             @unique
+  username        String?
+  slug            String             @unique
+  firstName       String
+  lastName        String?
+  displayName     String?
+  photoUrl        String?
+  role            Role               @default(USER)
+  isPublic        Boolean            @default(false)
+  theme           Json?
+  isDemo          Boolean            @default(false)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  lastLoginAt     DateTime?
+  sessions        Session[]
+  scans           Scan[]
+  collection      CollectionItem[]
+  achievements    UserAchievement[]
+  notifications   Notification[]
+  tickets         SupportTicket[]    @relation("TicketOwner")
+  assignedTickets SupportTicket[]    @relation("TicketAssignee")
+  messages        SupportMessage[]
+  supportAttempt  SupportKeyAttempt?
+
+  @@index([isPublic])
+  @@index([isDemo])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Manufacturer {
+  id          String           @id @default(cuid())
+  slug        String           @unique
+  name        String           @unique
+  country     String?
+  description String?
+  accent      String           @default("#77776f")
+  aliases     String[]
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  models      CapModel[]
+  items       CollectionItem[]
+}
+
+model CapModel {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  brand          String
+  name           String
+  manufacturerId String
+  manufacturer   Manufacturer     @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
+  rarity         Rarity           @default(UNDETERMINED)
+  flavor         String?
+  strength       String?
+  description    String?
+  aliases        String[]
+  keywords       String[]
+  releaseYear    Int?
+  isLimited      Boolean          @default(false)
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  items          CollectionItem[]
+
+  @@index([manufacturerId])
+  @@index([rarity])
+}
+
+model Scan {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageKey      String
+  imageUrl      String
+  imageHash     String
+  phash         String?
+  ocrText       String?
+  ocrConfidence Float?
+  rawOcr        Json?
+  recognition   Json?
+  status        ScanStatus      @default(COMPLETED)
+  error         String?
+  createdAt     DateTime        @default(now())
+  expiresAt     DateTime
+  item          CollectionItem?
+
+  @@index([userId, imageHash])
+  @@index([userId, createdAt])
+}
+
+model CollectionItem {
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scanId           String?       @unique
+  scan             Scan?         @relation(fields: [scanId], references: [id], onDelete: SetNull)
+  manufacturerId   String?
+  manufacturer     Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+  capModelId       String?
+  capModel         CapModel?     @relation(fields: [capModelId], references: [id], onDelete: SetNull)
+  manufacturerName String?
+  brandName        String?
+  productName      String?
+  flavor           String?
+  strength         String?
+  description      String?
+  recognizedText   String?
+  rarity           Rarity        @default(UNDETERMINED)
+  imageUrl         String
+  imageKey         String?
+  imageHash        String
+  phash            String?
+  ocrConfidence    Float?
+  isDemo           Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([userId, imageHash])
+  @@index([userId, createdAt])
+  @@index([userId, rarity])
+  @@index([manufacturerId])
+  @@index([capModelId])
+}
+
+model Achievement {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  title       String
+  description String
+  icon        String
+  metric      AchievementMetric
+  target      Int               @default(1)
+  rarity      Rarity?
+  sortOrder   Int               @default(0)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  unlocked    UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+}
+
+model SupportTicket {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation("TicketOwner", fields: [userId], references: [id], onDelete: Cascade)
+  subject       String
+  status        TicketStatus     @default(OPEN)
+  assignedToId  String?
+  assignedTo    User?            @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  lastMessageAt DateTime         @default(now())
+  messages      SupportMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([userId])
+}
+
+model SupportMessage {
+  id         String        @id @default(cuid())
+  ticketId   String
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId   String?
+  author     User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorRole TicketAuthor
+  body       String
+  viaBot     Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model SupportKeyAttempt {
+  userId          String    @id
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts        Int       @default(0)
+  windowStartedAt DateTime  @default(now())
+  lockedUntil     DateTime?
+  updatedAt       DateTime  @updatedAt
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    @default("info")
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model SiteEvent {
+  id        String   @id @default(cuid())
+  type      String
+  userId    String?
+  path      String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([createdAt])
+}

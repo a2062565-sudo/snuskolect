@@ -1,0 +1,53 @@
+{
+  "name": "kaps",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KAPS — коллекционирование крышек от шайб снюса",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
+    "seed": "prisma db push && npm run db:seed",
+    "bot": "tsx src/bot/index.ts",
+    "dev:all": "concurrently -n web,bot -c cyan,magenta \"npm run dev\" \"npm run bot\"",
+    "support:hash": "node scripts/hash-support-key.mjs"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1166.0",
+    "@prisma/client": "6.19.3",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
+    "framer-motion": "^14.12.0",
+    "grammy": "^1.46.0",
+    "lucide-react": "^0.575.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "sharp": "^0.35.5",
+    "tesseract.js": "6.0.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "prisma": "6.19.3",
+    "tailwindcss": "4.3.3",
+    "tsx": "^4.20.6",
+    "typescript": "^5"
+  }
+}
